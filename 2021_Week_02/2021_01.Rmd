@@ -19,12 +19,12 @@ library(countrycode)
 
 <https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-01-05/readme.md>
 
-```{r Transit_Cost}
+```{r Transit_Cost, message=FALSE, warning=FALSE}
 tuesdata <- tidytuesdayR::tt_load(2021, week = 2)
 transit_cost <- tuesdata$transit_cost
 ```
 
-```{r Plot}
+```{r Plot, warning=FALSE}
 transit_cost %>%
   filter(!is.na(country) & !is.na(cost_km_millions)) %>%
   group_by(country) %>%
@@ -32,12 +32,16 @@ transit_cost %>%
   ungroup() %>%
   select(country, avg_km_cost) %>%
   arrange(avg_km_cost) %>%
-  mutate(country_name = countrycode(country, origin = 'iso2c', destination = 'cldr.short.en', nomatch = NULL),
-         region = countrycode(country, origin = 'iso2c', destination = 'un.region.name', nomatch = NULL)) %>%
-  #ggplot(aes(reorder(country_name, avg_km_cost), avg_km_cost)) +
+  mutate(country_name = countrycode(country, 
+                                    origin = 'iso2c', destination = 'cldr.short.en', 
+                                    nomatch = NULL),
+         region = countrycode(country, 
+                              origin = 'iso2c', destination = 'un.region.name', 
+                              nomatch = NULL)) %>%
   ggplot(aes(region, avg_km_cost)) +
-  geom_jitter(width = 0.1, alpha = 0.5) +
-#  geom_point() +
+  geom_jitter(width = 0.05, alpha = 0.5) +
+  geom_text(aes(label = ifelse(avg_km_cost > 500, country_name, '')), 
+            hjust = 0, vjust = 1, size = 3) + 
   theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
   xlab('Region') +
   ylab('Cost per KM (USD)') +
