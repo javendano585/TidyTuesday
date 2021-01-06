@@ -1,0 +1,45 @@
+---
+title: "2021 Week 02"
+author: "Jaime Avendano"
+data: "2020-01-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library_prep, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+library(countrycode)
+```
+
+## Tidy Tuesday 2021 - Week 2 - Transit Cost Project
+
+<https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-01-05/readme.md>
+
+```{r Transit_Cost}
+tuesdata <- tidytuesdayR::tt_load(2021, week = 2)
+transit_cost <- tuesdata$transit_cost
+```
+
+```{r Plot}
+transit_cost %>%
+  filter(!is.na(country) & !is.na(cost_km_millions)) %>%
+  group_by(country) %>%
+  summarise(avg_km_cost = mean(cost_km_millions)) %>%
+  ungroup() %>%
+  select(country, avg_km_cost) %>%
+  arrange(avg_km_cost) %>%
+  mutate(country_name = countrycode(country, origin = 'iso2c', destination = 'cldr.short.en', nomatch = NULL),
+         region = countrycode(country, origin = 'iso2c', destination = 'un.region.name', nomatch = NULL)) %>%
+  #ggplot(aes(reorder(country_name, avg_km_cost), avg_km_cost)) +
+  ggplot(aes(region, avg_km_cost)) +
+  geom_jitter(width = 0.1, alpha = 0.5) +
+#  geom_point() +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  xlab('Region') +
+  ylab('Cost per KM (USD)') +
+  ggtitle('Average Transit Cost per KM by Region (USD)')
+```
