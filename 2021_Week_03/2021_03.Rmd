@@ -1,0 +1,71 @@
+---
+title: "2021 Week 03"
+author: "Jaime Avendano"
+data: "2020-01-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r library_prep, message=FALSE, warning=FALSE}
+library(tidyverse)
+library(tidytuesdayR)
+library(viridis)
+```
+
+## Tidy Tuesday 2021 - Week 3 - Art Collections
+<https://github.com/rfordatascience/tidytuesday/blob/master/data/2021/2021-01-12/readme.md>
+Tate Art Collection data.
+
+```{r Transit_Cost, message=FALSE, warning=FALSE}
+#tuesdata <- tidytuesdayR::tt_load(2021, week = 3)
+artwork <- readr::read_csv('https://raw.githubusercontent.com/rfordatascience/tidytuesday/master/data/2021/2021-01-12/artwork.csv')
+artists <- readr::read_csv("https://github.com/tategallery/collection/raw/master/artist_data.csv")
+```
+
+
+```{r Prep Art Career}
+art_career <- artwork %>%
+  drop_na(year) %>%
+  filter(artistRole == 'artist') %>%
+  group_by(artistId) %>%
+  summarise(firstArt = min(year),
+            lastArt = max(year),
+            artworks = n(),
+            career = lastArt - firstArt)
+```
+
+# Plot creation
+My goal week was to try different color schemes, which works out well with the dataset.
+I decided on viridis-plasma, as it allowed older years to stand out. 
+
+```{r Plot, echo=TRUE, warning=FALSE}
+artists %>% 
+  drop_na(yearOfBirth, yearOfDeath) %>%
+  left_join(art_career, by = c('id' = 'artistId')) %>%
+  drop_na(firstArt, lastArt, artworks, career) %>%
+  mutate(ageAtFirst = firstArt - yearOfBirth, 
+         centuryOfBirth = yearOfBirth - yearOfBirth%%100) %>%
+  filter(ageAtFirst > 0, 
+         artworks > 0) %>%
+  ggplot(aes(ageAtFirst, career, color = yearOfBirth)) +
+  theme_minimal() + 
+  scale_color_viridis(option = 'C') +
+  geom_point(data = . %>% filter(id != 558), aes(size = artworks), alpha = 0.75) +
+  geom_point(data = . %>% filter(id == 558), 
+             shape = 10, size = 15) + 
+  geom_text(data = . %>% filter(id == 558), 
+            aes(label = paste0('     ', name, ' (', format(artworks, big.mark = ','), ' works)')),
+            color = 'grey25', size = 3, hjust = 0) +
+  scale_x_continuous(breaks = seq(0, 100, 20)) + 
+  scale_y_continuous(breaks = seq(0, 100, 20)) + 
+  labs(title = 'Art Careers throughout the years',
+       subtitle = 'Historical artirts with more than one work of art.',
+       x = 'Age at earliest known work',
+       y = 'Duration of Career',
+       color = 'Birth year',
+       size = '# of Works')
+ggsave(filename = '2021_w03.png', type='cairo-png')
+```
