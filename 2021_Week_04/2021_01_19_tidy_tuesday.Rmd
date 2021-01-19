@@ -1,0 +1,116 @@
+---
+title: "TidyTuesday - 2021 Week 4 - Kenya Census"
+date: 2021-01-18
+output: html_output
+---
+
+# TidyTuesday
+https://github.com/brynmwangy/2019-Kenya-Census-App/blob/master/app.R
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+#library(rgdal)
+#library(raster)
+#library(broom)
+library(GADMTools)
+library(RColorBrewer)
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-01-19")
+gender <- tt$gender %>% 
+  clean_names() %>%
+  filter(county != 'Total')
+
+crops <- tt$crops %>% 
+  clean_names() %>%
+  filter(sub_county != 'KENYA') %>%
+  rename(county = sub_county) %>%
+  mutate(county = str_to_title(county))
+
+households <- tt$households %>% 
+  clean_names() %>%
+  mutate(county = str_trim(county)) %>%
+  filter(county != 'Kenya')
+
+#county_map <- getData('GADM', country='KE', level=1)
+kenya <- gadm_sf_loadCountries('KEN', level = 1)
+kenya_df <- fortify(kenya$sf, region = 'ISO3')
+
+top_crop <- crops %>%
+  replace(is.na(.), 0) %>%
+  gather(crop, cnt, -c(county)) %>%
+  filter(crop != 'farming') %>%
+  group_by(county) %>%
+  slice(which.max(cnt)) %>%
+  ungroup() %>%
+  mutate(crop = ifelse(cnt == 0, "none", crop),
+         county = str_replace(county,'[/]','-')) %>%
+  mutate(county = ifelse(county == 'Taita-Taveta', 'Taita Taveta', county))
+  
+
+# kenya_top_crop <- 
+#   county_map@data %>%
+#   rowid_to_column() %>%
+#   mutate(id = as.character(rowid)) %>%
+#   left_join(top_crop, by = c('NAME_1' = 'county'))
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+crops %>%
+  replace(is.na(.), 0) %>%
+  mutate(subtotal = rowSums(.[3:11])) %>%
+  gather(crop, cnt, -c(county,subtotal)) %>%
+  filter(crop != 'farming') %>%
+  mutate(county = reorder(county, subtotal)) %>%
+  ggplot(aes(x = county, y = cnt, fill = crop)) +
+  geom_bar(position = 'stack', stat = 'identity') +
+  theme(axis.text.x = element_text(angle = 90))
+
+kenya_df %>%
+  left_join(top_crop, by=c('NAME_1'='county')) %>%
+  ggplot(aes(fill = crop)) +
+  geom_sf(color = 'black') +
+  geom_sf_text(aes(label = NAME_1), check_overlap = TRUE, size = 3) +
+  scale_fill_manual(values = c("#008C51", "#EDCCB3", "#965A3E", "#6F4E37",
+                               "#98FB98", "#FFC324", "#DDDDDD", "#922529")) +
+  theme_minimal() +
+  theme(aspect.ratio = 1,
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        ) +
+  labs(title = 'Most common user of land in Kenya after farming',
+       subtitle = 'Every county relies primarily on farming, but what other crops do they focus on?',
+       caption = '@JaimeAAvendano',
+       fill = 'Crops')
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = "2021_Week04.png",
+  type = 'cairo-png',
+  width = 10, height = 10)
+
+```
