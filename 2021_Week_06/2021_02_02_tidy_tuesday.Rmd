@@ -1,0 +1,135 @@
+---
+title: "TidyTemplate"
+date: 2021-02-01
+output: html_output
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(scales)
+library(ggdark)
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-02-02")
+
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+
+hbcu_all <- tt$hbcu_all %>%
+  janitor::clean_names()
+
+
+hbcu_black <- tt$hbcu_black %>%
+  janitor::clean_names()
+
+
+hbcu_all %>% 
+  inner_join(hbcu_black, by = c("year")) %>%
+  janitor::clean_names() %>%
+  mutate(black_male_pct = males_y / total_enrollment_x,
+         black_female_pct = females_y / total_enrollment_x)
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+
+hbcu_all %>%
+  filter(year >= 1990) %>%
+  gather(gender, total_by_gender, males, females) %>%
+  mutate(total_k = total_enrollment/1000,
+         total_by_gender = total_by_gender/1000,
+         gender = fct_reorder(gender, desc(gender))) %>%
+  ggplot() + 
+  geom_bar(aes(x = year, y = total_by_gender, fill = gender), 
+           position = "stack", stat = "identity") +
+  dark_theme_bw()
+
+
+hbcu_all %>% 
+  inner_join(hbcu_black, by = c("year"), suffix = c("_all","")) %>%
+  mutate(total_enroll_k = total_enrollment / 1000,
+         Male = males / 1000,
+         Female = females / 1000) %>%
+  gather(gender, total_by_gender, Male, Female) %>%
+  ggplot() +
+  geom_line(aes(year, total_enroll_k, color = 'Total')) +
+  geom_line(aes(year, total_by_gender, color = gender)) +
+  theme_light() +
+  labs(title = "HBCU enrollment",
+       subtitle = paste("Although general enrollment has increased, \n",
+                        "enrollment for black males hasn't really increased in over 30 years."),
+       x = "Year",
+       y = "Enrollment (Thousands)",
+       color = "Gender" ) +
+  ylim(0, 350) +
+  scale_color_discrete(labels = c("Black Females", "Black Males", "All Students"))
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = "2021_Week06.png",
+  device = "png")
+
+```
