@@ -82,9 +82,10 @@ income_distribution %>%
   filter(race %in% c("White Alone", "Black Alone"),
          year %in% c(1969, 2019)) %>%
   select(-income_mean_moe, -income_med_moe) %>%
-  mutate(bracket_max = as.numeric(gsub(',', '', stri_extract_last_regex(income_bracket, '\\d+,\\d+')))) %>% 
+  #mutate(bracket_max = as.numeric(gsub(',', '', stri_extract_last_regex(income_bracket, '\\d+,\\d+')))) %>% 
   mutate(race = factor(race,levels = c("Black Alone", "Hispanic (Any Race)", "White Alone")),
-         income_bracket = fct_reorder(income_bracket, -bracket_max),
+         #income_bracket = fct_reorder(income_bracket, -bracket_max),
+         income_bracket = fct_rev(fct_inorder(income_bracket)),
          year = factor(year)) %>%
   ggplot() +
   geom_bar(aes(x = year, y = income_distribution/100, fill = income_bracket), 
