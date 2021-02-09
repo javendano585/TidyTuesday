@@ -1,0 +1,161 @@
+---
+title: "TidyTemplate"
+date: 2021-02-08
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+library(scales)
+library(ggtext)
+library(stringi)
+library(RColorBrewer)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-02-09")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+lifetime_earn <- tt$lifetime_earn
+student_debt <- tt$student_debt
+retirement <- tt$retirement
+home_owner <- tt$home_owner
+race_wealth <- tt$race_wealth
+income_time <- tt$income_time
+income_limits <- tt$income_limits
+income_aggregate <- tt$income_aggregate
+income_distribution <- tt$income_distribution
+income_mean <- tt$income_mean
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+income_distribution %>%
+  filter(race %in% c("White Alone", "Black Alone"),
+         year %in% c(1969, 2019)) %>%
+  select(-income_mean_moe, -income_med_moe) %>%
+  mutate(bracket_max = as.numeric(gsub(',', '', stri_extract_last_regex(income_bracket, '\\d+,\\d+')))) %>% 
+  mutate(race = factor(race,levels = c("Black Alone", "Hispanic (Any Race)", "White Alone")),
+         income_bracket = fct_reorder(income_bracket, -bracket_max),
+         year = factor(year)) %>%
+  ggplot() +
+  geom_bar(aes(x = year, y = income_distribution/100, fill = income_bracket), 
+           stat = 'identity', color = 'gray40') +
+  scale_fill_brewer(palette = 'PuBu') +
+  scale_y_continuous(labels = percent,
+                     sec.axis = dup_axis()) +
+  labs(x = NULL,
+       y = NULL,
+       fill = 'Income Bracket',
+       title = 'Income distribution after 50 years',
+       subtitle = glue::glue('40.1% of black households in 2019 make under 35K. 
+                             That\'s a higher percentage than white households in 1969.')) +
+  theme(panel.grid = element_blank(), 
+        plot.background = element_rect(fill = 'grey'),
+        panel.background = element_rect(fill = 'grey',
+                                        linetype = 'blank'),
+        legend.background = element_rect(fill = 'grey'),
+        strip.background = element_rect(fill = 'grey'),
+        strip.text = element_text(family = 'serif', size = 14),
+        axis.text = element_text(color = 'black')) +
+  facet_wrap(~race)
+
+race_wealth %>%
+  filter(type == 'Median') %>%
+  ggplot(aes(year, wealth_family, color = race)) +
+  geom_line() +
+  facet_wrap(~type)
+
+colors <- c('black_pct' = '#2B8CBE', 'hisp_pct' = '#E6550D')
+income_mean %>% 
+  filter(dollar_type == '2019 Dollars',
+         race %in% c("White Alone", "Black Alone", "Hispanic")) %>%
+  pivot_wider(names_from = race, values_from = income_dollars) %>%
+  mutate(hisp_pct = `Hispanic` / `White Alone`,
+         black_pct = `Black Alone`   / `White Alone`) %>%
+  #pivot_longer(c(`Hispanic`, `Black Alone`, `White Alone`), 
+               #names_to = 'race', values_to = 'income_dollars') %>%
+  pivot_longer(c(hisp_pct, black_pct), names_to = 'relation', values_to = 'percentage') %>%
+  mutate(income_quintile = factor(income_quintile, 
+                                  levels = c("Lowest", "Second", "Middle", 
+                                             "Fourth", "Highest", "Top 5%"))) %>%
+  filter(!is.na(percentage)) %>%
+  ggplot(aes(year, percentage, color = relation)) +
+  geom_line(show.legend = FALSE) +
+  facet_wrap(~income_quintile) +
+  scale_y_continuous(labels = percent, 
+                     limits = c(0, 1)) +
+  scale_color_manual(values = colors) +
+  labs(x = NULL,
+       y = NULL,
+       title = 'Average income relative to White households',
+        subtitle = glue::glue("Both <span style = 'color:{colors['black_pct']}\'>Black</span> and 
+        <span style = 'color:{colors['hisp_pct']}'>Hispanic</span> 
+        households earn less, regardless of their income level."),
+       color = 'Households') +
+  theme_minimal() +
+  theme(plot.subtitle = element_markdown())
+
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = "2021_Week_07/2021_Week_07.png",
+  device = "png")
+
+```
