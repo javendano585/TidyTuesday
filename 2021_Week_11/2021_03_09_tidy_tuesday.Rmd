@@ -1,0 +1,187 @@
+---
+title: "TidyTemplate"
+date: 2021-03-08
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(tidytext)
+library(ggbump)
+library(scales)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-03-09")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+raw <- tt$raw_bechdel
+movies <- tt$movies %>%
+  select(-error)
+
+raw %>% 
+  count(rating, sort=TRUE) 
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+raw %>% 
+  group_by(year, rating) %>%
+  summarise(total = n()) %>%
+  ungroup() %>%
+  filter(year > 1970,
+         year < 2014) %>%
+  ggplot(aes(year, total, fill=rating)) +
+  geom_bar(stat = 'identity')
+
+movies %>% 
+  filter(!is.na(imdb_rating)) %>%
+  group_by(year, clean_test) %>%
+  summarize(imdb_avg = mean(imdb_rating),
+            b_count = n()) %>%
+  ungroup() %>%
+  filter(year >= 2000) %>%
+  ggplot(aes(year, imdb_avg, color = clean_test)) +
+  geom_bump(size = 2) +
+  ylim(5,10) 
+
+movies %>% 
+  filter(!is.na(metascore)) %>%
+  group_by(year, clean_test) %>%
+  summarize(ms_avg = mean(metascore),
+            b_count = n()) %>%
+  ungroup() %>%
+  filter(year >= 2000) %>%
+  ggplot(aes(year, ms_avg, color = clean_test)) +
+  geom_point(size = 3) +
+  geom_bump(size = 1) +
+  geom_text(data = . %>% filter(year == min(year)),
+            aes(year - 0.5, label = clean_test),
+            hjust = 1) +
+  labs(x = NULL,
+       y = 'Metascore')
+
+
+
+movies %>% 
+  filter(!is.na(metascore)) %>%
+  group_by(year, binary) %>%
+  summarize(ms_avg = mean(metascore),
+            b_count = n()) %>%
+  ungroup() %>%
+  filter(year >= 2000) %>%
+  ggplot(aes(year, ms_avg, color = binary)) +
+  geom_point(size = 3) +
+  geom_bump(size = 1) +
+  geom_text(data = . %>% filter(year == min(year)),
+            aes(year - 0.5, label = binary),
+            hjust = 1) +
+  labs(x = NULL,
+       y = 'Metascore')
+
+# Didn't like how my initial ideas were coming out, so I took some inspiration from 
+# an earlier submission.
+#
+# Top half based on this.
+# https://github.com/jack-davison/TidyTuesday/blob/master/R/2021_03_09_bechdel.R
+movies %>%
+  filter(year >= 2000) %>%
+  unnest_tokens(input = genre, output = "genre", "words") %>%
+  mutate(genre = if_else(genre == "sci", "sci-fi", genre)) %>%
+  filter(genre != "fi") %>%
+  count(genre, binary) %>%
+  group_by(genre) %>%
+  mutate(total = sum(n),
+         avg_pass = n/total) %>% 
+  filter(binary == 'PASS') %>%
+  ungroup() %>%
+  
+  mutate(genre = fct_reorder(str_to_title(genre), avg_pass),
+         over_50 = avg_pass > 0.5) %>%
+  ggplot(aes(avg_pass, genre, color = over_50)) +
+  geom_point() +
+  geom_segment(aes(x = 0, xend = avg_pass,
+                   y = genre, yend=genre)) +
+  scale_x_continuous(labels = percent) +
+  scale_color_manual(values = c('grey50', 'blue')) +
+  theme_light() +
+  theme(panel.border = element_blank(),
+        axis.ticks.y = element_blank(),
+        panel.grid.major.y = element_blank(),
+        legend.position = 'none') +
+  labs(title = 'Percent of movies that pass Bechdel Test',
+       subtitle = 'Movies from 2000-2013',
+       x = NULL,
+       y = NULL)
+
+  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(filename = "2021_Week_11/2021_Week_11.png",
+       type = "cairo-png")
+
+```
