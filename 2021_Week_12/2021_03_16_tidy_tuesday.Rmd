@@ -1,0 +1,120 @@
+---
+title: "TidyTemplate"
+date: 2021-03-15
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(ggtext)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-03-16")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+games <- tt$games %>%
+  mutate(date = as.Date(paste(month, year, '01'), format = '%B %Y %d')) %>%
+  select(-year, -month)
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+peak_levels <- function(data) {
+  data %>%
+    group_by(gamename) %>%
+    mutate(total_avg = mean(peak)) %>%
+    ungroup() %>% 
+    mutate(peak_level = peak / total_avg)
+}
+
+one_hit_wonders <- games %>% 
+  peak_levels() %>%
+  slice_max(peak_level, n = 8) %>%
+  pull(gamename)
+
+
+games %>%
+  filter(gamename %in% one_hit_wonders,
+         date > '2017-01-01',
+         date < '2020-01-01') %>%
+  peak_levels() %>%
+  mutate(gamename = fct_reorder(gamename, peak, max, .desc = TRUE)) %>%
+  ggplot(aes(date, peak, color = gamename)) +
+  geom_point(aes(size = peak)) +
+  geom_segment(aes(x = date, xend = date,
+                   y = 0, yend = peak)) +
+  scale_size(guide = 'none') +
+  scale_y_continuous(labels = comma) +
+  theme_minimal() +
+  theme(plot.subtitle = element_text(size = 10)) +
+  labs(x = NULL,
+       y = 'Peak # of Players',
+       title = 'One-Hit Wonders in the Steam gaming world',
+       subtitle = glue::glue('These games had the largest spikes in their peak player base.\n',
+                             'Steam will occasionally make games free, ',
+                             'and everyone love free stuff!'),
+       color = 'Games')
+
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter!  
+
+```{r}
+
+# This will save your most recent plot
+ggsave(filename = "2021_Week_12/2021_Week_12.png",
+       type = "cairo-png")
+
+```
