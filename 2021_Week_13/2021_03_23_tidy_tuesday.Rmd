@@ -1,0 +1,181 @@
+---
+title: "TidyTemplate"
+date: 2021-03-22
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(lubridate)
+library(scales)
+
+library(RColorBrewer)
+
+library(extrafont)
+
+```
+
+# Load the weekly Data
+
+Donwload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-03-23")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+unvotes <- tt$unvotes
+roll_calls <- tt$roll_calls
+issues <- tt$issues
+
+# unvotes$region <- countrycode(unvotes$country_code, 
+#                               origin = 'iso2c', 
+#                               destination = 'un.regionintermediate.name')
+# unvotes %>%
+#   filter(region == 'South America') %>%
+#   count(country)
+
+vote_summary <- unvotes %>%
+  group_by(rcid) %>%
+  summarize(yeas = sum(vote == 'yes'),
+            nays = sum(vote == 'no'),
+            abstains = sum(vote == 'abstain'),
+            total = n())
+
+full_vote_summary <- unvotes %>%
+  left_join(roll_calls, by = 'rcid') %>%
+  group_by(date) %>%
+  summarize(yeas = sum(vote == 'yes'),
+            nays = sum(vote == 'no'),
+            abstains = sum(vote == 'abstain'),
+            total = n())
+
+annual_vote_summary <- unvotes %>%
+  inner_join(roll_calls, by = 'rcid') %>%
+  mutate(year = year(date)) %>%
+  inner_join(issues, by = 'rcid') %>%
+  group_by(issue, year) %>%
+  summarize(yeas = sum(vote == 'yes'),
+            nays = sum(vote == 'no'),
+            abstains = sum(vote == 'abstain'),
+            total = n())
+
+
+
+# unvotes %>%
+#   group_by(country) %>%
+#   summarize(yeas = sum(vote == 'yes'),
+#             nays = sum(vote == 'no'),
+#             abstains = sum(vote == 'abstain'),
+#             total = n())
+# 
+# votes_by_country <- unvotes %>%
+#   mutate(vote_int = case_when(vote == 'yes' ~ 1,
+#                               vote == 'abstain' ~ 0,
+#                               vote == 'no' ~ -1)) %>%
+#   filter(region == 'South America') %>%
+#   select(-country_code, -vote) %>%
+#   pivot_wider(names_from = 'country', values_from = 'vote_int', values_fill = 0)
+
+# un_cor <- cor(votes_by_country %>% select(-rcid, -continent, - region), method = 'spearman')
+# un_cor_df <- as.data.frame(un_cor)
+# un_cor_df$country <- row.names(un_cor_df)
+# ccm <- melt(un_cor_df, id = "country")
+# 
+# ccm %>%
+#   mutate(country = fct_reorder(country, value), 
+#          variable = fct_reorder(variable, value, .desc = TRUE)) %>%
+#   ggplot(aes(x = variable, y = country)) +
+#   geom_tile(aes(fill = value)) +
+#   scale_fill_continuous(limits = c(-1, 1))
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+annual_vote_summary %>%
+  filter(year >= 1950) %>%
+  mutate(yeas = yeas / total, 
+         nays = nays / total,
+         abstains = abstains / total,
+         issue = case_when(issue == 'Arms control and disarmament' 
+                           ~ 'Arms control and \ndisarmament',
+                           issue == 'Nuclear weapons and nuclear material' 
+                           ~ 'Nuclear weapons and \nnuclear material',
+                           TRUE ~ issue)) %>%
+  rename(Yeas = yeas,
+         Nays = nays,
+         Abstains = abstains) %>%
+  pivot_longer(3:5, names_to = 'vote_type') %>%
+  ggplot(aes(year, value, fill = vote_type)) +
+  geom_area() +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        plot.background = element_rect(fill = 'bisque'),
+        plot.title = element_text(family = 'Century'),
+        strip.text = element_text(family = 'Century', size = 11,
+                                  hjust = 0)) +
+  scale_y_continuous(labels = percent) + 
+  scale_fill_brewer(palette = 'Set2') +
+  facet_wrap(~issue) +
+  labs(x = NULL,
+       y = NULL,
+       fill = 'Votes',
+       title = 'UN Voting trends since 1950')
+
+
+  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(filename = "2021_Week_13/2021_Week_13.png",
+       type = "cairo-png")
+
+```
