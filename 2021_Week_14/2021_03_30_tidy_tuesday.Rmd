@@ -1,0 +1,139 @@
+---
+title: "TidyTemplate"
+date: 2021-03-29
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(ggridges)
+library(scales)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-03-30")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+sephora <- tt$sephora
+ulta <- tt$ulta
+allShades <- tt$allShades
+allCategories <- tt$allCategories
+allNumbers <- tt$allNumbers
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+allNumbers %>%
+  ggplot(aes(lightness, fill=lightToDark)) +
+  geom_density(alpha = 0.5) +
+  xlim(0, 1)
+
+allCategories %>%
+  filter(grepl('nude', name)) %>%
+  ggplot(aes(lightness)) +
+  geom_histogram(alpha = 0.5, bins = 29) +
+  xlim(0, 1)
+  
+shade_range <- allShades %>% 
+  group_by(brand) %>%
+  summarise(shade_range = quantile(lightness, 0.75) - quantile(lightness, 0.25),
+            shade_count = n()) %>% 
+  filter(shade_count > 50) %>%
+  arrange(shade_range) %>%
+  filter(row_number() > max(row_number()) - 4 | shade_count > 200) %>%
+  #slice_max(shade_range, n = 5) %>%
+  inner_join(allShades, by = 'brand') %>%
+  mutate(brand_count = glue::glue('{brand} ({shade_count})'),
+         brand_count = fct_reorder(brand_count, lightness, median, .desc = TRUE))
+
+shade_colors <- shade_range %>% pull(hex, hex)
+
+shade_range %>%
+  ggplot(aes(lightness, brand_count)) +
+  #geom_density_ridges2(scale = 1.0) +
+  geom_jitter(aes(fill = hex),
+             size = 5, pch = 21, height = 0.15) +
+  geom_boxplot(alpha = 0.1, width = 0.75,
+              outlier.shape = NA) +
+  scale_fill_manual(values = shade_colors) +
+  scale_x_continuous(labels = percent) +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  labs(x = 'Lightness',
+       y = 'Brand (# of shades available)',
+       title = 'Analysis of lightness across makeup brands',
+       subtitle = glue::glue('Comparison of the 4 brands with the largest range vs. ',
+                             'the 4 brands with the most shades available.'),
+       caption = 'Jaime Avendaño - Data: The Pudding')
+
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(filename = "2021_Week_14/2021_Week_14.png",
+       type = "cairo-png")
+
+```
