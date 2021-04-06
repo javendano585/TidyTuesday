@@ -104,9 +104,8 @@ Using your processed dataset, create your unique visualization.
 sa_years <- south_america %>%
   left_join(soy_world, by='code') %>%
   select(-region, -subregion, -mapname, -country_code, -code, -continent) %>%
-  #filter(!is.na(year)) %>%
-  #filter(between(year, 2010, 2013)) %>%
   filter(long > -90) %>%
+  #filter(between(year, 2010, 2013)) %>%
   #filter(year == 2013) %>%
   ggplot(aes(long, lat, group = group, fill = total_use, label = paste(year))) +
   geom_polygon(color = 'black', size = 0.25) +
