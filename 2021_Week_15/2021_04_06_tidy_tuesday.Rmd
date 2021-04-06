@@ -1,0 +1,141 @@
+---
+title: "TidyTemplate"
+date: 2021-04-05
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+
+library(fuzzyjoin)
+library(countrycode)
+
+library(ggthemes)
+library(gganimate)
+#library(gifski)
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-04-06")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+soy <- tt$soybean_use
+
+
+soy_world <- soy %>% 
+  filter(!is.na(code)) %>%
+  mutate(human_food = replace_na(human_food, 0),
+         animal_feed = replace_na(animal_feed, 0),
+         processed = replace_na(processed, 0),
+         total_use = (human_food + animal_feed + processed) / 10^6) %>%
+  select(code, year, total_use) %>%
+  # Adding French Guiana manually
+  add_row(code = 'GUF', year = 1963:2013)
+
+
+# world_data <- map_data('world') %>%
+#   as_tibble() %>%
+#   regex_left_join(maps::iso3166 %>%
+#                     select(mapname, country_code = a2, code = a3),
+#                   c(region = "mapname")) %>%
+#   filter(region != "Antarctica")
+
+south_america <- map_data('world') %>%
+  as_tibble() %>%
+  regex_left_join(maps::iso3166 %>%
+                    select(mapname, country_code = a2, code = a3),
+                  c(region = "mapname")) %>%
+  mutate(continent = countrycode(code, origin = 'iso3c', 
+                                 destination = 'un.regionintermediate.name', 
+                                 warn = FALSE)) %>% 
+  filter(continent == 'South America')
+
+
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+sa_years <- south_america %>%
+  left_join(soy_world, by='code') %>%
+  select(-region, -subregion, -mapname, -country_code, -code, -continent) %>%
+  #filter(!is.na(year)) %>%
+  #filter(between(year, 2010, 2013)) %>%
+  filter(long > -90) %>%
+  #filter(year == 2013) %>%
+  ggplot(aes(long, lat, group = group, fill = total_use, label = paste(year))) +
+  geom_polygon(color = 'black', size = 0.25) +
+  geom_text(aes(-85, -20), size = 5, check_overlap = TRUE) +
+  theme_map() +
+  coord_map() +
+  scale_fill_gradient(low = 'darkseagreen1',
+                      high = 'darkseagreen4',
+                      guide = guide_colorbar(title = 'Total (million tonnes)',
+                                             title.position = 'top',
+                                             label.position = 'top',
+                                             direction = 'horizontal')) +
+  theme(legend.position = c(0.75, 0.25)) +
+  labs(title = 'Soybean usage over the years',
+       subtitle = 'South America (1963 - 2013)',
+       caption = 'Jaime Avendaño - Data: Our World in Data') +
+  transition_time(year, range = c(1963, 2013))
+
+animate(sa_years, renderer = gifski_renderer(), start_pause = 10, end_pause = 10)
+  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+anim_save(filename = '2021_Week_15/2021_Week_15.gif')
+
+```
