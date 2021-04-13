@@ -1,0 +1,173 @@
+---
+title: "TidyTemplate"
+date: 2021-04-13
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+
+library(gganimate)
+library(viridis)
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-04-13")
+
+#
+# Data provided by:
+#"Blevins, Cameron; Helbock, Richard W., 2021, "US Post Offices", 
+# https://doi.org/10.7910/DVN/NUKCNA, Harvard Dataverse, V1, UNF:6:8ROmiI5/4qA8jHrt62PpyA== [fileUNF]"
+#
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+tt$post_offices %>%
+  filter(!is.na(discontinued),
+         discontinued < 2030) %>%
+  pull(discontinued) %>%
+  max(na.rm=TRUE)
+
+states_data <- tibble(state = state.abb) %>%
+  bind_cols(tibble(name = state.name))
+
+posts <- tt$post_offices %>%
+  mutate(name = coalesce(alt_name, orig_name, name)) %>%
+  select(-alt_name, -orig_name, -contains('county'), -starts_with('gnis')) %>%
+  filter(continuous) %>%
+  mutate(discontinued = replace_na(discontinued, 2000)) %>% 
+  filter(!is.na(established),
+         discontinued <= 2020) %>%
+  select(state, established, discontinued)
+
+posts_by_year <- posts %>%
+  transmute(state, year = map2(established, discontinued, seq)) %>%
+  unnest(cols = year) %>%
+  filter(year >= 1800,
+         year <= 2000,
+         year %% 10 == 0) %>%
+  group_by(year, state) %>%
+  summarize(.groups = 'drop',
+            locations = n()) %>%
+  group_by(year) %>%
+  arrange(year, state) %>% 
+  mutate(rank = rank(-locations, ties.method = 'first'),
+         label = paste0(' ', locations)) %>%
+  group_by(state) %>%
+  filter(rank <= 10) %>%
+  ungroup() %>%
+  left_join(states_data, by = 'state') %>%
+  select(-state) %>%
+  rename(state = name)
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+p <- posts_by_year %>%
+  #filter(year == 1800) %>%
+  ggplot(aes(x = -rank, y = locations)) + 
+           #, fill = state, color = state)) +
+  geom_col(aes(fill = state, color = state), alpha = 0.75, width = 0.75) +
+  geom_text(aes(y = -100, label = state), color = 'white', hjust = 'right', vjust = 0.5) +
+  geom_text(aes(y = locations, label = locations), color = 'white', hjust = -0.25) +
+  coord_flip(clip = 'off', expand = TRUE) +
+  #scale_x_reverse() +
+  scale_fill_viridis(discrete = TRUE, option = 'C') + 
+  scale_color_viridis(discrete = TRUE, option = 'C') + 
+  guides(colour = FALSE, fill = FALSE) +
+  ylim(-100, 5000) +
+  theme_minimal() + 
+  theme(plot.background = element_rect(color = '#004B87',
+                                       fill = '#004B87'),
+        panel.background = element_rect(color = '#004B87',
+                                        fill = '#004B87'),
+        axis.text = element_blank(),
+        axis.ticks = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        panel.grid.major.x = element_line(size=.1, color="grey"),
+        plot.margin = margin(0.5, 1, 0.5, 2.5, 'cm'),
+        plot.title = element_text(size = 18, color = 'white'),
+        plot.subtitle = element_text(size = 12, color = 'white'),
+        plot.caption = element_text(color = 'white'))
+  
+a <- p + transition_states(year) +
+  #view_follow(fixed_x = FALSE) +
+  labs(title = 'Post Office Locations ({closest_state})',
+       subtitle = '10 states with the most post offices.',
+       caption = '@JaimeAAvendano - Data: Blevins, Cameron; Helbock, Richard W.')
+
+animate(a, fps = 7, #width = 1200, height = 1000,
+        start_pause = 10, end_pause = 10,
+        #renderer = gifski_renderer())  
+        renderer = gifski_renderer('2021_Week_16/2021_Week_16.gif'))  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+# ggsave(
+#   filename = "My TidyTuesday Plot.png",
+#   device = "png")
+
+```
