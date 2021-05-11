@@ -1,0 +1,139 @@
+---
+title: "TidyTemplate"
+date: 2021-05-11
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(janitor)
+
+library(zipcodeR)
+library(tigris)
+library(ggthemes)
+library(extrafont)
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-05-11")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+my_state <- 'TX'
+
+broadband <- tt$broadband %>%
+  clean_names() %>%
+  filter(broadband_availability_per_fcc != '-',
+         broadband_usage != '-') %>%
+  mutate(county_id = as.character(county_id),
+         broadband_availability_per_fcc = as.numeric(broadband_availability_per_fcc),
+         broadband_usage = as.numeric(broadband_usage),
+         bb_diff = broadband_availability_per_fcc - broadband_usage,
+         bb_diff = if_else(bb_diff < 0 , 0, bb_diff))
+
+broadband_zip <- tt$broadband_zip %>%
+  clean_names()
+
+rhode_island <- counties(state = 'RI', cb = TRUE) %>%
+  clean_names()
+
+texas <- counties(state = 'TX', cb = TRUE) %>%
+  clean_names()
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+texas %>%
+  left_join(broadband, by = c('geoid' = 'county_id')) %>%
+  ggplot(aes(fill = bb_diff)) +
+  scale_fill_gradient(low = 'white', high = '#AE0700', limits = c(0.0 , 1.0),
+                      guide = guide_colorbar(
+                        title = glue::glue('% of Population not\n',
+                                           'using available broadband.'),
+                        title.position = 'top',
+                        frame.colour = 'grey25',
+                        frame.linetype = 'solid',
+                        direction = 'horizontal',
+                        label.position = 'top'
+                                           )) +
+  geom_sf(color = 'grey25', size = 0.3) +
+  theme_map() +
+  theme(legend.position = c(0.02, 0.05),
+        plot.title = element_text(family = 'Cambria', size = 15, hjust = 0.5),
+        plot.subtitle = element_text(family = 'Cambria', size = 10)) +
+  labs(title = glue::glue('Texas counties where broadband\n',
+                          'isn\'t being fully utilized'),
+       # subtitle = glue::glue('Even when broadband is available, ',
+       #                       'it\'s not always taken advantage of.',
+       #                       '\nCosts of broadband could be an issue.'),
+       caption = '@JaimeAAvendano; Data from Microsoft')
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = "2021_Week_20/2021_Week_20.png",
+  width = 5,
+  device = 'png')
+
+```
