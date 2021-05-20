@@ -1,0 +1,119 @@
+---
+title: "TidyTemplate"
+date: 2021-05-18
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(scales)
+library(waffle)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-05-18")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+survey <- tt$survey %>%
+  mutate(gender = case_when(str_detect(gender, 'answer') ~ 'Not available',
+                            is.na(gender) ~ 'Not available',
+                            TRUE ~ gender),
+         gender = fct_infreq(gender),
+         age_group = fct_relevel(fct_reorder(how_old_are_you,
+                                             parse_number(how_old_are_you)), 
+                                 "under 18"))
+
+survey %>% count(gender)
+survey %>% count(gender, how_old_are_you) %>% View()
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+survery_grouped <- survey %>%
+  group_by(gender, age_group) %>%
+  summarize(.groups = 'drop',
+            n = n())
+
+survery_grouped %>%
+  ggplot(aes(fill = age_group, values = n/100)) +
+  geom_waffle(color = "white", size = 0.1, n_rows = 10, flip = TRUE) +
+  facet_wrap(~gender, nrow = 1, strip.position = 'bottom') +
+  scale_y_continuous(labels = function(x) x * 100 * 10,
+                     expand = c(0, 0)) +
+  labs(title = 'Survey Participants by Gender and Age-Group',
+       subtitle = 'Blocks = 100 submissions',
+       x = NULL,
+       y = 'Count',
+       fill = 'Age-Group') +
+  theme_minimal() +
+  theme(panel.grid = element_blank(),
+        axis.text.x = element_blank())
+
+
+
+survey %>%
+  group_by(gender, age_group) %>%
+  summarize(.groups = 'drop',
+            n = n()) %>%
+  ggplot(aes(age_group, n)) + 
+  geom_point()
+
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+
+
+```
