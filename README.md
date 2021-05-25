@@ -6,7 +6,9 @@ https://github.com/rfordatascience/tidytuesday
 I'll be posting on Twitter: @JaimeAAvendano.
 
 ---
+
 ## May  
+<a href="2021_Week_22"><img src="2021/Week_22/Week_22.png"></a><br>
 <a href="2021_Week_20"><img src="2021_Week_20/2021_Week_20.png"></a><br>
 
 ## April  

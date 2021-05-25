@@ -1,0 +1,143 @@
+---
+title: "TidyTemplate"
+date: 2021-05-24
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(glue)
+library(ggtext)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-05-25")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+drivers <- tt$drivers
+records <- tt$records
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+#https://www.schemecolor.com/super-mario-colors.php#:~:text=The%20Super%20Mario%20Logo%20Colors,created%20by%20user%20Keshav%20Naidu.
+#https://www.schemecolor.com/super-mario.php
+
+mario_softblue = '#049CD8'
+mario_blue = '#0001FC'
+mario_red = '#E52521'
+mario_darkred = '#6A0400'
+mario_yellow = '#FBD000'
+mario_green = '#43B047'
+
+records %>%
+  group_by(track, type, shortcut) %>%
+  summarize(.groups = 'drop',
+            fastest = min(time)) %>% 
+  group_by(track) %>%
+  mutate(min_time = min(fastest),
+         max_time = max(fastest)) %>%
+  ungroup() %>%
+  mutate(track = fct_reorder(track, min_time)) %>% 
+  ggplot() +
+  geom_segment(aes(x = min_time, xend = max_time, y = track, yend = track)) +
+  geom_point(aes(fastest, track, 
+                 shape = shortcut,
+                 color = type),
+             size = 4) +
+  scale_shape_manual(values = c(19, 4)) +
+  scale_color_manual(values = c(mario_red, mario_blue),
+                     guide = FALSE) +
+  theme_minimal() +
+  labs(x = 'Time (seconds)',
+       y = NULL,
+       shape = 'Shortcut',
+       color = 'Type',
+       title = 'Mario Kart Record Times',
+       subtitle = glue('Comparing <span style="color:{mario_red}">**Single Lap times**</span>',
+                       ' vs <span style="color:{mario_blue}">**Three Lap times**</span>'),
+       caption = '@JaimeAAvendano; Data from Mario Kart World Records') +
+  theme(panel.background = element_rect(fill = mario_softblue,
+                                        color = mario_darkred),
+        plot.background = element_rect(fill = mario_yellow),
+        panel.grid.major = element_line(color = mario_darkred),
+        panel.grid.minor = element_line(color = mario_darkred),
+        panel.grid.major.y = element_blank(),
+        axis.text = element_text(color = mario_blue),
+        legend.text = element_text(color = mario_blue),
+        title = element_text(color = mario_blue),
+        plot.title = element_markdown(size = 18, fill = mario_yellow),
+        plot.subtitle = element_markdown(fill = mario_yellow))
+
+    
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(
+  filename = "2021/Week_22/Week_22.png",
+  device = "png")
+
+```
