@@ -1,0 +1,120 @@
+---
+title: "TidyTemplate"
+date: 2021-06-22
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(fmsb)
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+
+tt <- tt_load("2021-06-22")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+parks <- tt$parks %>%
+  select(-park_benches) 
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+features <- colnames(parks)[colnames(parks) %>% str_ends('points')] %>% 
+  setdiff(c('amenities_points', 'total_points'))
+
+
+texas <- c('Dallas', 'Austin', 'Houston', 'El Paso')
+
+texas_data <- parks %>%
+  filter(year == 2020, 
+         city %in% texas) %>%
+  select(c('city', features[5:10]))
+
+texas_plot_data <- rbind(rep(100, 6), rep(0, 6), texas_data %>% 
+                  select(-city))
+
+radarchart(texas_plot_data, 
+           vlabels = c('Basketball', 'Splashpads', 'Restrooms', 'Rec/Sr Centers', 'Playgrounds', 'Dog Parks'),
+           pcol = 2:6,
+           axistype = 1,
+           caxislabels = seq(0, 100, 25),
+           axislabcol = 'grey25',
+           title = 'Texas Parks 2020 Comparison')
+legend(x=1.1, y=1.4, 
+       legend = texas_data$city, 
+       col = 2:6,
+       bty = "n", pch=20, text.col = "grey25", 
+       #cex=1, 
+       pt.cex=2)
+title(xlab = '@JaimeAAvendano; Data from The Trust for Public Land', cex.lab = 0.75)
+  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+#ggsave(filename = "2021/Week_26/2021_Week_26.png", device = "png")
+
+```
