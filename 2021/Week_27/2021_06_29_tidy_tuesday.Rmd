@@ -1,0 +1,127 @@
+---
+title: "TidyTemplate"
+date: 2021-06-28
+output: html_output
+editor_options: 
+  chunk_output_type: console
+---
+
+# TidyTuesday
+
+Join the R4DS Online Learning Community in the weekly #TidyTuesday event!
+Every week we post a raw dataset, a chart or article related to that dataset, and ask you to explore the data.
+While the dataset will be “tamed”, it will not always be tidy! As such you might need to apply various R for Data Science techniques to wrangle the data into a true tidy format.
+The goal of TidyTuesday is to apply your R skills, get feedback, explore other’s work, and connect with the greater #RStats community!
+As such we encourage everyone of all skills to participate!
+
+```{r setup, include=FALSE}
+
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+library(tidytuesdayR)
+library(ggthemes)
+
+library(ggmap)
+#register_google(key = "", write = TRUE)
+
+library(extrafont)
+loadfonts(device = 'win')
+
+```
+
+# Load the weekly Data
+
+Dowload the weekly data and make available in the `tt` object.
+
+```{r Load}
+tt <- tt_load("2021-06-29")
+
+```
+
+
+# Readme
+
+Take a look at the readme for the weekly data to get insight on the dataset.
+This includes a data dictionary, source, and a link to an article on the data.
+
+```{r Readme, eval = interactive()}
+
+tt
+
+```
+
+
+# Glimpse Data
+
+Take an initial look at the format of the data available.
+
+```{r Glimpse}
+
+tt %>% 
+  map(glimpse)
+
+```
+
+# Wrangle
+
+Explore the data and process it into a nice format for plotting! Access each dataset by name by using a dollarsign after the `tt` object and then the name of the data set.
+
+```{r Wrangle}
+
+rescues <- tt$animal_rescues %>%
+  select(-type_of_incident) %>%
+  mutate(animal = str_replace(animal_group_parent, '(?s) .*', ''),
+         animal = str_to_title(animal),
+         animal = fct_lump(animal, 8))
+
+rescues_on_map <- rescues %>% 
+  filter(longitude != 'NULL',
+         !latitude %in% c('NULL', '0')) %>%
+  mutate(latitude = as.numeric(latitude),
+         longitude = as.numeric(longitude))
+
+london <- get_googlemap('london', zoom = 10, maptype = 'terrain')
+
+
+
+```
+
+
+# Visualize
+
+Using your processed dataset, create your unique visualization.
+
+```{r Visualize}
+
+rescues_on_map %>%
+  ggplot(aes(longitude, latitude, color = animal)) +
+  geom_point(alpha = 0.5) +
+  facet_wrap(~animal)
+
+london %>% ggmap(extent = 'panel', darken = 0.05) +
+  geom_point(data = rescues_on_map %>% filter(animal == 'Deer'), 
+             aes(longitude, latitude),
+             alpha = 0.75, size = 3, color = 'goldenrod') +
+  theme_map() +
+  scale_x_continuous(limits = c(-0.50, 0.25)) +
+  scale_y_continuous(limits = c(51.3, 51.7)) +
+  labs(title = 'Animal Rescues in London',
+       subtitle = 'Deer don\'t need saving in the middle of the city',
+       caption = '@JaimeAAvendano; Data from London.gov') +
+  theme(plot.title = element_text(family = 'High Tower Text', size = 18),
+        plot.subtitle = element_text(family = 'High Tower Text', size = 12))
+  
+```
+
+# Save Image
+
+Save your image for sharing. Be sure to use the `#TidyTuesday` hashtag in your post on twitter! 
+
+```{r}
+
+# This will save your most recent plot
+ggsave(filename = "2021/Week_27/2021_Week_27.png",
+       type = "cairo-png")
+
+```

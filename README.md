@@ -8,6 +8,7 @@ I'll be posting on Twitter: @JaimeAAvendano.
 ---
 
 ## June  
+<a href="2021_Week_27"><img src="2021/Week_27/2021_Week_27.png"></a><br>
 <a href="2021_Week_26"><img src="2021/Week_26/2021_Week_26.png"></a><br>
 
 ## May  
